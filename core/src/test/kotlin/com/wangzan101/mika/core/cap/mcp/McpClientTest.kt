@@ -15,7 +15,9 @@ import com.wangzan101.mika.core.run.RunSpec
 import com.wangzan101.mika.core.tool.ActionPass
 import com.wangzan101.mika.core.tool.FakeScreen
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
@@ -24,6 +26,21 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class McpClientTest {
+    @Test fun malformedSchemasDoNotPreventDispatcherAssembly() {
+        val schemas = listOf(
+            """{"type":"object","properties":null}""",
+            """{"type":"object","properties":{"q":true}}""",
+            """{"type":"object","properties":{"q":{"type":"string"}},"required":"q"}""",
+            """{"type":"object","properties":{"q":{"type":"string"}},"required":["q",null,42,true]}""",
+        )
+        for (schema in schemas) {
+            val endpoint = FakeEndpoint().apply {
+                offered = listOf(McpToolDescriptor("search", "Search", Json.parseToJsonElement(schema).jsonObject))
+            }
+            val tools = toolDispatcher(FakeScreen(), mcpServers = listOf(McpConnection(endpoint)))
+            assertTrue(schema, tools.definitions().any { it.name == "mcp_demo__search" })
+        }
+    }
     private class FakeEndpoint : McpEndpoint {
         override val serverId = "demo"
         var offered = listOf(McpToolDescriptor("search", "Search", buildJsonObject { put("type", "object") }, McpAnnotations(readOnlyHint = true)))
