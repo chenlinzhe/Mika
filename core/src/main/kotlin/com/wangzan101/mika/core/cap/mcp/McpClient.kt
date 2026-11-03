@@ -20,10 +20,11 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+
+
 import kotlinx.serialization.json.put
 
 /** 传输层只须实现这两个操作；每个 Run 开局调用一次 tools，之后目录不变。 */
@@ -209,8 +210,8 @@ private class McpClientTool(
     override val def: ToolDef = ToolDef(
         "mcp_${endpoint.serverId.replace(Regex("[^A-Za-z0-9_]"), "_")}__${descriptor.name.replace(Regex("[^A-Za-z0-9_]"), "_")}",
         descriptor.description,
-        schema["properties"]?.jsonObject.orEmpty().mapValues { it.value.jsonObject },
-        schema["required"]?.jsonArray?.map { it.jsonPrimitive.content }.orEmpty(),
+        (schema["properties"] as? JsonObject).orEmpty().mapValues { (_, value) -> value as? JsonObject ?: JsonObject(emptyMap()) },
+        (schema["required"] as? JsonArray).orEmpty().mapNotNull { (it as? JsonPrimitive)?.takeIf { value -> value.isString }?.content },
     )
     override val verb = Verb.Interact
     override val risk = when (approval.level) {
